@@ -9,10 +9,11 @@
     <style>
         /* 기존 스타일 완벽 유지 */
         body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; max-width: 1200px; margin: 0 auto; text-align: center; color: #333; background-color: #f0f2f5; padding: 15px; }
-        header { background: linear-gradient(135deg, #2c3e50, #4ca1af); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        header h1 { margin: 0; font-size: 28px; }
+        header { background: linear-gradient(135deg, #2c3e50, #4ca1af); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
+        header h1 { margin: 0; font-size: 28px; display: inline-block; }
+        .settings-btn { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 20px; padding: 5px 10px; border-radius: 8px; cursor: pointer; vertical-align: middle; margin-left: 10px; }
         section { background: #fff; margin-bottom: 25px; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); text-align: left; }
-        .block-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 20px; }
+        .block-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .block-title { font-size: 22px; font-weight: bold; color: #2c3e50; border-left: 5px solid #3498db; padding-left: 15px; }
         button { cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; touch-action: manipulation; }
         .btn-small { padding: 8px 12px; font-size: 13px; background: #95a5a6; color: white; }
@@ -35,11 +36,23 @@
         .btn-finish { background-color: #e74c3c; color: white; padding: 12px; font-size: 15px; border-radius: 0; width: 100%; }
         @keyframes blink { 0% { background-color: #fff; } 50% { background-color: #fff176; } 100% { background-color: #fff; } }
         .blinking { animation: blink 0.5s linear 6; }
+
+        /* 팝업 스타일 */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
+        .modal-content { background: #fff; margin: 50px auto; padding: 25px; width: 90%; max-width: 600px; border-radius: 15px; }
+        .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .member-list-edit { width: 100%; max-height: 300px; overflow-y: auto; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-    <header><h1>🏸 2026 광명북고 배드민턴</h1></header>
+    <header>
+        <h1 id="site-title">🏸 2026 광명북고 배드민턴</h1>
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </header>
 
     <section id="member-section">
         <div class="block-header">
@@ -49,6 +62,7 @@
                 <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
                 <button class="btn-green" style="padding: 8px 12px; font-size: 13px;" onclick="document.getElementById('csvFileInput').click()">파일 합치기(CSV)</button>
                 <button class="btn-green" style="padding: 8px 12px; font-size: 13px; background-color: #f39c12;" onclick="exportToCSV()">내보내기</button>
+                <button class="btn-green" style="padding: 8px 12px; font-size: 13px; background-color: #3498db;" onclick="openMemberManager()">수정/추가</button>
                 <button class="btn-small" style="background-color: #e74c3c;" onclick="resetData()">서버 초기화</button>
             </div>
         </div>
@@ -77,94 +91,242 @@
         <div class="court-container" id="court-display"></div>
     </section>
 
-    <script>
-        // --- 1. Firebase 설정 (본인의 Firebase 콘솔에서 복사한 정보로 교체하세요) ---
-        const firebaseConfig = {
-    apiKey: "AIzaSyArU7I7QS57fKTI-F0FLlUxG9RufkPllKk",
-    authDomain: "gmb-badminton.firebaseapp.com",
-    databaseURL: "https://gmb-badminton-default-rtdb.firebaseio.com",
-    projectId: "gmb-badminton",
-    storageBucket: "gmb-badminton.firebasestorage.app",
-    messagingSenderId: "625864594459",
-    appId: "1:625864594459:web:5c0df980d2596c728054be",
-    measurementId: "G-NXRL1Q7T9B"
-  };
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">⚙️ 환경 설정</div>
+            <div class="form-group">
+                <label>사이트 제목</label>
+                <input type="text" id="config-title" placeholder="2026 광명북고 배드민턴">
+            </div>
+            <div class="form-group">
+                <label>코트 개수</label>
+                <input type="number" id="config-courts" min="1" max="10">
+            </div>
+            <button class="btn-blue" onclick="saveSettings()">저장하고 돌아가기</button>
+        </div>
+    </div>
 
-        // Firebase 초기화
+    <div id="memberModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">👤 회원 추가 및 수정</div>
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <strong>새 회원 추가</strong>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top:10px;">
+                    <input type="text" id="add-name" placeholder="이름">
+                    <select id="add-gender"><option value="남">남</option><option value="여">여</option></select>
+                    <input type="text" id="add-level" placeholder="급수">
+                    <input type="text" id="add-etc" placeholder="기타">
+                    <button class="btn-green" style="padding: 10px;" onclick="addNewMember()">추가</button>
+                </div>
+            </div>
+            <div class="table-wrapper member-list-edit">
+                <table style="min-width: 100%;">
+                    <thead><tr><th>이름</th><th>성별</th><th>급수</th><th>승</th><th>패</th><th>기타</th><th>삭제</th></tr></thead>
+                    <tbody id="editMemberTableBody"></tbody>
+                </table>
+            </div>
+            <button class="btn-blue" onclick="closeMemberManager()">저장하고 돌아가기</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Firebase 설정 ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyArU7I7QS57fKTI-F0FLlUxG9RufkPllKk",
+            authDomain: "gmb-badminton.firebaseapp.com",
+            databaseURL: "https://gmb-badminton-default-rtdb.firebaseio.com",
+            projectId: "gmb-badminton",
+            storageBucket: "gmb-badminton.firebasestorage.app",
+            messagingSenderId: "625864594459",
+            appId: "1:625864594459:web:5c0df980d2596c728054be"
+        };
+
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const memberRef = database.ref('badminton/members');
+        const configRef = database.ref('badminton/config');
 
         let memberList = [];
+        let siteConfig = { title: "2026 광명북고 배드민턴", courtCount: 5 };
 
-        // --- 2. 데이터 처리 로직 ---
-
-        // 페이지 로드 및 실시간 데이터 수신
+        // --- 2. 데이터 초기화 및 수신 ---
         window.onload = function() {
-            initLayout(); 
-            // 서버 데이터 실시간 감시 (변경되면 즉시 실행)
-            memberRef.on('value', (snapshot) => {
+            configRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    // 객체 형태를 배열로 변환
-                    memberList = Object.values(data);
-                } else {
-                    memberList = [];
+                    siteConfig = data;
+                    document.getElementById('site-title').innerText = "🏸 " + siteConfig.title;
+                    initLayout();
                 }
+            });
+
+            memberRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                memberList = data ? Object.values(data) : [];
                 renderTable();
             });
         };
 
         function saveData() {
-            // 서버(Firebase)에 데이터 저장
             const dataToSave = {};
             memberList.forEach(m => {
-                dataToSave[m.name.replace(/[.#$[\]]/g, "_")] = m; // 특수문자 방지 키값 처리
+                if(m.name) dataToSave[m.name.replace(/[.#$[\]]/g, "_")] = m;
             });
             memberRef.set(dataToSave);
         }
 
-        // CSV 파일 불러오기 및 기존 데이터와 합치기
+        // --- 3. 환경 설정 관련 ---
+        function openSettings() {
+            const pw = prompt("비밀번호를 입력하세요.");
+            if (pw === "gmb1234") {
+                document.getElementById('config-title').value = siteConfig.title;
+                document.getElementById('config-courts').value = siteConfig.courtCount;
+                document.getElementById('settingsModal').style.display = 'block';
+            } else if (pw !== null) {
+                alert("비밀번호가 틀렸습니다.");
+            }
+        }
+
+        function saveSettings() {
+            const newTitle = document.getElementById('config-title').value || "2026 광명북고 배드민턴";
+            const newCount = parseInt(document.getElementById('config-courts').value) || 5;
+            configRef.set({ title: newTitle, courtCount: newCount });
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        // --- 4. 회원 관리 기능 ---
+        function openMemberManager() {
+            renderEditTable();
+            document.getElementById('memberModal').style.display = 'block';
+        }
+
+        function closeMemberManager() {
+            saveData();
+            document.getElementById('memberModal').style.display = 'none';
+        }
+
+        function renderEditTable() {
+            const tbody = document.getElementById('editMemberTableBody');
+            tbody.innerHTML = '';
+            memberList.forEach((m, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${m.name}</td>
+                    <td><input type="text" value="${m.gender}" style="width:40px" onchange="updateMemberField(${idx}, 'gender', this.value)"></td>
+                    <td><input type="text" value="${m.level}" style="width:60px" onchange="updateMemberField(${idx}, 'level', this.value)"></td>
+                    <td><input type="number" value="${m.wins}" style="width:40px" onchange="updateMemberField(${idx}, 'wins', parseInt(this.value))"></td>
+                    <td><input type="number" value="${m.losses}" style="width:40px" onchange="updateMemberField(${idx}, 'losses', parseInt(this.value))"></td>
+                    <td><input type="text" value="${m.etc || ''}" onchange="updateMemberField(${idx}, 'etc', this.value)"></td>
+                    <td><button onclick="deleteMember(${idx})" style="color:red">X</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateMemberField(idx, field, value) {
+            memberList[idx][field] = value;
+        }
+
+        function addNewMember() {
+            const name = document.getElementById('add-name').value.trim();
+            if(!name) return alert("이름을 입력하세요.");
+            if(memberList.some(m => m.name === name)) return alert("이미 존재하는 이름입니다.");
+            
+            memberList.push({
+                name: name,
+                gender: document.getElementById('add-gender').value,
+                level: document.getElementById('add-level').value,
+                wins: 0, losses: 0,
+                etc: document.getElementById('add-etc').value
+            });
+            document.getElementById('add-name').value = '';
+            renderEditTable();
+        }
+
+        function deleteMember(idx) {
+            if(confirm("정말 삭제하시겠습니까?")) {
+                memberList.splice(idx, 1);
+                renderEditTable();
+            }
+        }
+
+        // --- 5. CSV 로드 (점검 및 수정 완료) ---
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const rows = e.target.result.split(/\r?\n/);
-                rows.forEach((row, index) => {
-                    if (index === 0 || row.trim() === "") return;
-                    const cols = row.split(',');
-                    const name = cols[0]?.trim();
+                // 한글 깨짐 및 BOM 방지를 위한 전처리
+                const rawContent = e.target.result;
+                const content = rawContent.replace(/^\uFEFF/, "").trim(); 
+                const rows = content.split(/\r?\n/);
+                if (rows.length < 2) return;
+                
+                // 1행(헤더) 항목 분석
+                const headers = rows[0].split(',').map(h => h.trim());
+                const idx = {
+                    name: headers.indexOf("이름"),
+                    gender: headers.indexOf("성별"),
+                    level: headers.indexOf("급수"),
+                    wins: headers.indexOf("승"),
+                    losses: headers.indexOf("패"),
+                    etc: headers.indexOf("기타")
+                };
+
+                // 필수 항목인 '이름'이 없는 경우 경고
+                if (idx.name === -1) {
+                    alert("CSV 파일의 첫 행에서 '이름' 항목을 찾을 수 없습니다. (현재 항목: " + headers.join(", ") + ")");
+                    return;
+                }
+
+                let updatedCount = 0;
+                let addedCount = 0;
+
+                rows.forEach((row, rowIndex) => {
+                    if (rowIndex === 0 || row.trim() === "") return;
+                    const cols = row.split(',').map(c => c.trim());
+                    const name = cols[idx.name];
                     if(!name) return;
 
                     const existing = memberList.find(m => m.name === name);
                     if(existing) {
-                        existing.wins = parseInt(cols[6]) || 0;
-                        existing.losses = parseInt(cols[7]) || 0;
+                        if(idx.gender !== -1) existing.gender = cols[idx.gender] || existing.gender;
+                        if(idx.level !== -1) existing.level = cols[idx.level] || existing.level;
+                        if(idx.wins !== -1) existing.wins = parseInt(cols[idx.wins]) || 0;
+                        if(idx.losses !== -1) existing.losses = parseInt(cols[idx.losses]) || 0;
+                        if(idx.etc !== -1) existing.etc = cols[idx.etc] || existing.etc;
+                        updatedCount++;
                     } else {
                         memberList.push({ 
-                            name: name, gender: cols[1]?.trim(), 
-                            birth: cols[2]?.trim(), level: cols[3]?.trim(), 
-                            role: cols[4]?.trim(), etc: cols[5]?.trim(), 
-                            wins: parseInt(cols[6]) || 0, losses: parseInt(cols[7]) || 0 
+                            name: name, 
+                            gender: idx.gender !== -1 ? cols[idx.gender] : "",
+                            level: idx.level !== -1 ? cols[idx.level] : "", 
+                            wins: idx.wins !== -1 ? parseInt(cols[idx.wins]) || 0 : 0, 
+                            losses: idx.losses !== -1 ? parseInt(cols[idx.losses]) || 0 : 0,
+                            etc: idx.etc !== -1 ? cols[idx.etc] : ""
                         });
+                        addedCount++;
                     }
                 });
-                saveData(); // 서버에 저장
+                
+                saveData(); // Firebase 서버 저장
+                alert(`가져오기 완료: 신규 ${addedCount}명 추가, 기존 ${updatedCount}명 업데이트 되었습니다.`);
+                e.target.value = ""; // 파일 입력 초기화
             };
             reader.readAsText(file, 'UTF-8');
         });
 
+        // --- 6. UI 및 레이아웃 제어 ---
         function renderTable() {
             const tbody = document.getElementById('memberTableBody');
             if(memberList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6">서버에 데이터가 없습니다. CSV를 업로드해 주세요.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6">서버에 데이터가 없습니다. CSV 업로드해 주세요.</td></tr>';
                 return;
             }
             tbody.innerHTML = '';
             memberList.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${m.name}</td><td>${m.gender}</td><td>${m.level}</td><td>${m.wins}</td><td>${m.losses}</td><td>${m.etc}</td>`;
+                tr.innerHTML = `<td>${m.name}</td><td>${m.gender}</td><td>${m.level}</td><td>${m.wins}</td><td>${m.losses}</td><td>${m.etc || ''}</td>`;
                 tbody.appendChild(tr);
             });
         }
@@ -186,41 +348,14 @@
             body.innerHTML = "<span>대기 중</span>";
             body.classList.add('court-waiting');
             finishBtn.style.display = 'none';
-            
-            saveData(); // 실시간 서버 업데이트
-        }
-
-        function resetData() {
-            if(confirm("주의! 서버의 모든 데이터가 삭제됩니다. 계속하시겠습니까?")) {
-                memberRef.remove();
-            }
-        }
-
-        // --- 3. UI 및 레이아웃 제어 (기존 로직 유지) ---
-        function initLayout() {
-            let qHtml = '';
-            for(let i=1; i<=5; i++){
-                qHtml += `<div class="queue-box"><div class="queue-header" ${i===1?'style="background:#d63031"':''}>${i}순위</div><div class="queue-body"><input type="text" id="q${i}-p1" placeholder="선수1"><input type="text" id="q${i}-p2" placeholder="선수2"><hr style="border:0.5px solid #eee;"><input type="text" id="q${i}-p3" placeholder="선수3"><input type="text" id="q${i}-p4" placeholder="선수4"></div></div>`;
-            }
-            document.getElementById('queue-inputs').innerHTML = qHtml;
-
-            let cHtml = '';
-            for(let i=1; i<=5; i++){
-                cHtml += `<div class="court-box" id="c${i}"><div class="court-header">${i}코트</div><div class="court-body court-waiting" id="cb${i}"><span>대기 중</span></div><button class="btn-finish" id="fb${i}" onclick="finishGame(${i})" style="display:none;">게임 종료</button></div>`;
-            }
-            document.getElementById('court-display').innerHTML = cHtml;
-        }
-
-        function toggleMemberView() {
-            const content = document.getElementById('member-content');
-            content.style.display = (content.style.display === 'none') ? 'block' : 'none';
+            saveData();
         }
 
         function assignPlayers() {
             const p = [1, 2, 3, 4].map(j => document.getElementById(`q1-p${j}`).value.trim());
             if (p.filter(x => x).length < 4) { alert("1순위 명단을 모두 채워주세요."); return; }
 
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= siteConfig.courtCount; i++) {
                 const body = document.getElementById(`cb${i}`);
                 if (body.classList.contains('court-waiting')) {
                     body.innerHTML = `<div>${p[0]}, ${p[1]}</div><div style="font-size:12px; color:#999;">VS</div><div>${p[2]}, ${p[3]}</div>`;
@@ -237,25 +372,52 @@
         }
 
         function shiftQueue() {
-            for (let i = 1; i <= 4; i++) {
+            const count = siteConfig.courtCount;
+            for (let i = 1; i < count; i++) {
                 for (let j = 1; j <= 4; j++) {
                     document.getElementById(`q${i}-p${j}`).value = document.getElementById(`q${i+1}-p${j}`).value;
                 }
             }
-            for (let j = 1; j <= 4; j++) document.getElementById(`q5-p${j}`).value = "";
+            for (let j = 1; j <= 4; j++) document.getElementById(`q${count}-p${j}`).value = "";
+        }
+
+        function initLayout() {
+            const count = siteConfig.courtCount;
+            let qHtml = '';
+            for(let i=1; i<=count; i++){
+                qHtml += `<div class="queue-box"><div class="queue-header" ${i===1?'style="background:#d63031"':''}>${i}순위</div><div class="queue-body"><input type="text" id="q${i}-p1" placeholder="선수1"><input type="text" id="q${i}-p2" placeholder="선수2"><hr style="border:0.5px solid #eee;"><input type="text" id="q${i}-p3" placeholder="선수3"><input type="text" id="q${i}-p4" placeholder="선수4"></div></div>`;
+            }
+            document.getElementById('queue-inputs').innerHTML = qHtml;
+
+            let cHtml = '';
+            for(let i=1; i<=count; i++){
+                cHtml += `<div class="court-box" id="c${i}"><div class="court-header">${i}코트</div><div class="court-body court-waiting" id="cb${i}"><span>대기 중</span></div><button class="btn-finish" id="fb${i}" onclick="finishGame(${i})" style="display:none;">게임 종료</button></div>`;
+            }
+            document.getElementById('court-display').innerHTML = cHtml;
+        }
+
+        function toggleMemberView() {
+            const content = document.getElementById('member-content');
+            content.style.display = (content.style.display === 'none') ? 'block' : 'none';
+        }
+
+        function resetData() {
+            if(confirm("주의! 서버의 모든 데이터가 삭제됩니다. 계속하시겠습니까?")) {
+                memberRef.remove();
+            }
         }
 
         function exportToCSV() {
             if(memberList.length === 0) return;
-            let csvContent = "\uFEFF이름,성별,출생년도,급수,직책,기타,승,패\n";
+            let csvContent = "\uFEFF이름,성별,급수,승,패,기타\n";
             memberList.forEach(m => { 
-                csvContent += `${m.name},${m.gender},${m.birth||''},${m.level||''},${m.role||''},${m.etc||''},${m.wins},${m.losses}\n`; 
+                csvContent += `${m.name},${m.gender},${m.level||''},${m.wins},${m.losses},${m.etc||''}\n`; 
             });
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `광명북고_실시간백업_${new Date().toISOString().slice(0,10)}.csv`;
+            link.download = `배드민턴_회원명단_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
         }
     </script>
